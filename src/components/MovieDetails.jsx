@@ -1,63 +1,63 @@
-// src/components/MovieDetails.jsx
-import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import SearchBar from "./components/SearchBar";
+import MovieList from "./components/MovieList";
+import SkeletonList from "./components/SkeletonList";
 
-function MovieDetails() {
-  const { id } = useParams();
-  const [movie, setMovie] = useState(null);
+function App() {
+  const [movies, setMovies] = useState([]);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchMovie = async () => {
-      try {
-        setError("");
-        const response = await fetch(
-          `https://www.omdbapi.com/?apikey=${import.meta.env.VITE_OMDB_API_KEY}&i=${id}&plot=full`
-        );
-        const data = await response.json();
+  const fetchMovies = async (query) => {
+    const apiKey = import.meta.env.VITE_OMDB_API_KEY;
 
-        if (data.Response === "True") {
-          setMovie(data);
-        } else {
-          setError(data.Error);
-        }
-      } catch (err) {
-        setError("Failed to load movie details.");
+    if (!apiKey) {
+      setError("OMDb API key is missing.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`
+      );
+      const data = await response.json();
+
+      if (data.Response === "True") {
+        setMovies(data.Search);
+      } else {
+        setMovies([]);
+        setError(data.Error || "No results found.");
       }
-    };
-
-    fetchMovie();
-  }, [id]);
-
-  if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
-  if (!movie) return <p className="text-center mt-8">Loading...</p>;
+    } catch (err) {
+      setError("Failed to fetch movies. Please check your network connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <Link to="/" className="text-blue-600 underline mb-4 inline-block">
-        ← Back to Search
-      </Link>
+    <main className="min-h-screen bg-gray-100 text-gray-900 p-4">
+      <header className="text-center mb-6">
+        <h1 className="text-3xl font-extrabold">🎬 Movie Database</h1>
+        <p className="text-gray-600">Search and explore your favorite movies</p>
+      </header>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <img
-          src={movie.Poster !== "N/A" ? movie.Poster : "/no-image.png"}
-          alt={movie.Title}
-          className="w-full md:w-1/3 h-auto object-cover"
-        />
+      <SearchBar onSearch={fetchMovies} />
 
-        <div>
-          <h2 className="text-2xl font-bold mb-2">{movie.Title}</h2>
-          <p className="text-gray-600 mb-2">📅 {movie.Released}</p>
-          <p><strong>Genre:</strong> {movie.Genre}</p>
-          <p><strong>Director:</strong> {movie.Director}</p>
-          <p><strong>Cast:</strong> {movie.Actors}</p>
-          <p className="my-2"><strong>Plot:</strong> {movie.Plot}</p>
-          <p><strong>Rating:</strong> {movie.imdbRating} / 10</p>
-          <p><strong>Runtime:</strong> {movie.Runtime}</p>
-        </div>
-      </div>
-    </div>
+      {error && (
+        <p className="text-red-600 text-center my-4 font-medium">{error}</p>
+      )}
+
+      {isLoading ? (
+        <SkeletonList />
+      ) : (
+        <MovieList movies={movies} />
+      )}
+    </main>
   );
 }
 
-export default MovieDetails;
+export default App;

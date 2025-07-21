@@ -1,8 +1,7 @@
-// src/components/MovieList.jsx
 import MovieCard from "./MovieCard";
 
 function MovieList({ movies }) {
-  if (movies.length === 0) return null;
+  if (!movies.length) return null;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
