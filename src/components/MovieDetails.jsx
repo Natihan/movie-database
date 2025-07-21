@@ -1,63 +1,73 @@
-import { useState } from "react";
-import SearchBar from "./components/SearchBar";
-import MovieList from "./components/MovieList";
-import SkeletonList from "./components/SkeletonList";
+import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import SkeletonDetail from './SkeletonDetail';
 
-function App() {
-  const [movies, setMovies] = useState([]);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+function MovieDetails() {
+  const { id } = useParams();
+  const [movie, setMovie] = useState(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchMovies = async (query) => {
-    const apiKey = import.meta.env.VITE_OMDB_API_KEY;
+  useEffect(() => {
+    const fetchMovie = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+        const response = await fetch(
+          `https://www.omdbapi.com/?apikey=${
+            import.meta.env.VITE_OMDB_API_KEY
+          }&i=${id}&plot=full`
+        );
+        const data = await response.json();
 
-    if (!apiKey) {
-      setError("OMDb API key is missing.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const response = await fetch(
-        `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`
-      );
-      const data = await response.json();
-
-      if (data.Response === "True") {
-        setMovies(data.Search);
-      } else {
-        setMovies([]);
-        setError(data.Error || "No results found.");
+        if (data.Response === 'True') {
+          setMovie(data);
+        } else {
+          setError(data.Error || 'Movie not found');
+        }
+      } catch (err) {
+        setError('Failed to load movie details');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError("Failed to fetch movies. Please check your network connection.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    fetchMovie();
+  }, [id]);
+
+  if (isLoading) return <SkeletonDetail />;
+  if (error) return <ErrorDisplay message={error} />;
+  if (!movie) return null;
 
   return (
-    <main className="min-h-screen bg-gray-100 text-gray-900 p-4">
-      <header className="text-center mb-6">
-        <h1 className="text-3xl font-extrabold">🎬 Movie Database</h1>
-        <p className="text-gray-600">Search and explore your favorite movies</p>
-      </header>
-
-      <SearchBar onSearch={fetchMovies} />
-
-      {error && (
-        <p className="text-red-600 text-center my-4 font-medium">{error}</p>
-      )}
-
-      {isLoading ? (
-        <SkeletonList />
-      ) : (
-        <MovieList movies={movies} />
-      )}
-    </main>
+    <div className="max-w-4xl mx-auto p-4">
+      <Link
+        to="/"
+        className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4"
+      >
+        ← Back to Search
+      </Link>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="md:flex">
+          <div className="md:w-1/3">
+            <img
+              src={movie.Poster !== 'N/A' ? movie.Poster : '/no-image.png'}
+              alt={movie.Title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="p-6 md:w-2/3">
+            <h2 className="text-2xl font-bold mb-2">{movie.Title}</h2>
+            <p className="text-gray-600 mb-4">{movie.Year} • {movie.Runtime}</p>
+            <p className="mb-4"><strong>Plot:</strong> {movie.Plot}</p>
+            <p><strong>Director:</strong> {movie.Director}</p>
+            <p><strong>Cast:</strong> {movie.Actors}</p>
+            <p><strong>Rating:</strong> {movie.imdbRating}/10</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default App;
+export default MovieDetails;
