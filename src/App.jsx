@@ -1,61 +1,49 @@
-import { useState } from "react";
-import SearchBar from "./components/SearchBar";
-import MovieList from "./components/MovieList";
-import SkeletonList from "./components/SkeletonList"; // Changed from SkeletonDetails
+// src/App.jsx
+import { useState } from 'react';
+import SearchBar from './components/SearchBar';
+import MovieList from './components/MovieList';
+import SkeletonList from './components/SkeletonList';
+import { useMovies } from './hooks/useMovies';
 
 function App() {
-  const [movies, setMovies] = useState([]);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const { 
+    movies, 
+    error, 
+    isLoading, 
+    totalResults, 
+    currentPage, 
+    searchMovies 
+  } = useMovies();
 
-  const fetchMovies = async (query) => {
-    const apiKey = import.meta.env.VITE_OMDB_API_KEY;
-
-    if (!apiKey) {
-      setError("OMDb API key is missing.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const response = await fetch(
-        `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`
-      );
-      const data = await response.json();
-
-      if (data.Response === "True") {
-        setMovies(data.Search);
-      } else {
-        setMovies([]);
-        setError(data.Error || "No results found.");
-      }
-    } catch (err) {
-      setError("Failed to fetch movies. Please check your network connection.");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSearch = (searchQuery) => {
+    setQuery(searchQuery);
+    searchMovies(searchQuery);
   };
 
   return (
-    <main className="min-h-screen bg-gray-100 text-gray-900 p-4">
+    <main className="min-h-screen bg-gray-100 p-4">
       <header className="text-center mb-6">
-        <h1 className="text-3xl font-extrabold">🎬 Movie Database</h1>
-        <p className="text-gray-600">Search and explore your favorite movies</p>
+        <h1 className="text-3xl font-bold text-gray-800">🎬 Movie Database</h1>
       </header>
-
-      <SearchBar onSearch={fetchMovies} />
-
+      
+      <SearchBar onSearch={handleSearch} />
+      
       {error && (
-        <p className="text-red-600 text-center my-4 font-medium">{error}</p>
+        <p className="text-red-500 text-center my-4">{error}</p>
       )}
-
-      {/* Now matches the import */}
+      
       {isLoading ? (
         <SkeletonList />
       ) : (
-        <MovieList movies={movies} />
+        <>
+          {movies.length > 0 && (
+            <p className="text-center text-gray-600 mb-4">
+              Showing {movies.length} of {totalResults} results
+            </p>
+          )}
+          <MovieList movies={movies} />
+        </>
       )}
     </main>
   );
