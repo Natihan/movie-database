@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-function SearchBar({ onSearch }) {
-  const [query, setQuery] = useState("");
+function SearchBar({ onSearch, initialQuery = "" }) {
+  const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
