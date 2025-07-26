@@ -5,6 +5,13 @@ import { useState } from "react";
 export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const movieLinks = {
+    Popular: "/movies/popular",
+    "Now Playing": "/movies/now-playing",
+    Upcoming: "/movies/upcoming",
+    "Top Rated": "/movies/top-rated",
+  };
+
   return (
     <nav className="bg-[#032541] text-white px-6 py-4 flex justify-between items-center">
       <h1 className="text-2xl font-bold">
@@ -21,23 +28,30 @@ export default function Navbar() {
           </button>
           {dropdownOpen && (
             <ul className="absolute left-0 mt-2 bg-white text-black shadow rounded py-2 w-40 z-10">
-              {["Popular", "Now Playing", "Upcoming", "Top Rated"].map((item) => (
-                <li key={item} className="px-4 py-2 hover:bg-gray-100">
-                  <Link to="#">{item}</Link>
+              {Object.entries(movieLinks).map(([label, path]) => (
+                <li key={label} className="px-4 py-2 hover:bg-gray-100">
+                  <Link to={path}>{label}</Link>
                 </li>
               ))}
             </ul>
           )}
         </li>
 
+        {/* ✅ Updated routes to match your Router config */}
         <li>
-          <Link to="#" className="hover:underline">TV Shows</Link>
+          <Link to="/tv/popular?type=tv" className="hover:underline">
+            TV Shows
+          </Link>
         </li>
         <li>
-          <Link to="#" className="hover:underline">People</Link>
+          <Link to="/person/popular?type=person" className="hover:underline">
+            People
+          </Link>
         </li>
         <li>
-          <Link to="/favorites" className="hover:underline">Favorites</Link>
+          <Link to="/favorites" className="hover:underline">
+            Favorites
+          </Link>
         </li>
       </ul>
     </nav>

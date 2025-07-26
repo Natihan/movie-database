@@ -8,36 +8,37 @@ export function useTrendingTmdb() {
   const [loadingTmdb, setLoadingTmdb] = useState(true);
   const [errorTmdb, setErrorTmdb] = useState(null);
 
-  useEffect(() => {
-    async function fetchTrending() {
-      setLoadingTmdb(true);
-      setErrorTmdb(null);
+  const fetchTrending = async (timeframe = "week") => {
+    setLoadingTmdb(true);
+    setErrorTmdb(null);
 
-      try {
-        const response = await fetch(
-          `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}`
-        );
+    try {
+      const response = await fetch(
+        `${TMDB_BASE_URL}/trending/movie/${timeframe}?api_key=${TMDB_API_KEY}`
+      );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data && data.results) {
-          setTmdbTrending(data.results);
-        } else {
-          setErrorTmdb("No trending movies found from TMDB.");
-        }
-      } catch (error) {
-        setErrorTmdb(error.message || "Failed to fetch TMDB trending movies.");
-      } finally {
-        setLoadingTmdb(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    }
 
+      const data = await response.json();
+
+      if (data && data.results) {
+        setTmdbTrending(data.results);
+      } else {
+        setErrorTmdb("No trending movies found from TMDB.");
+      }
+    } catch (error) {
+      setErrorTmdb(error.message || "Failed to fetch TMDB trending movies.");
+    } finally {
+      setLoadingTmdb(false);
+    }
+  };
+
+  // Fetch trending movies for default timeframe on mount
+  useEffect(() => {
     fetchTrending();
   }, []);
 
-  return { tmdbTrending, loadingTmdb, errorTmdb };
+  return { tmdbTrending, loadingTmdb, errorTmdb, fetchTrending };
 }

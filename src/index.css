@@ -15,7 +15,6 @@ html, body, #root {
   overflow-x: hidden;
 }
 
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -27,4 +26,32 @@ html, body, #root {
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease forwards;
+}
+
+/* ===== Trailer Scrollbar Custom Style ===== */
+.trailer-scroll {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* Chrome, Safari, Edge */
+.trailer-scroll::-webkit-scrollbar {
+  height: 8px;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+
+.trailer-scroll:hover::-webkit-scrollbar {
+  opacity: 1;
+}
+
+.trailer-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.trailer-scroll::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; /* Tailwind's gray-300 */
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }

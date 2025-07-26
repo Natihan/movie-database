@@ -1,33 +1,125 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  FaListUl,
+  FaHeart,
+  FaBookmark,
+  FaStar,
+  FaEllipsisV,
+} from "react-icons/fa";
+
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
-  return (
-    <div className="relative">
-      {/* Favorite Button */}
-      <button
-        onClick={(e) => {
-          e.preventDefault(); // prevent navigation
-          toggleFavorite(movie);
-        }}
-        className="absolute top-2 right-2 z-10 text-2xl"
-      >
-        {isFavorite ? "❤️" : "🤍"}
-      </button>
+  const [menuOpen, setMenuOpen] = useState(false);
 
-      {/* Clickable Movie Card */}
-      <Link to={`/movie/${movie.imdbID}`} state={{ movie, searchQuery }}>
-        <div className="bg-white shadow-md rounded overflow-hidden hover:shadow-lg transition">
-          <img
-            src={movie.Poster !== "N/A" ? movie.Poster : "/no-image.png"}
-            alt={movie.Title}
-            className="w-full h-64 object-cover"
-          />
-          <div className="p-4">
-            <h3 className="font-bold text-lg">{movie.Title}</h3>
-            <p className="text-sm text-gray-600">{movie.Year}</p>
-          </div>
+  const imgSrc =
+    movie.poster_path
+      ? `${TMDB_IMAGE_BASE}${movie.poster_path}`
+      : movie.backdrop_path
+      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
+      : movie.Poster && movie.Poster !== "N/A"
+      ? movie.Poster
+      : "/no-image.png";
+
+  const movieId = movie.imdbID || movie.id;
+  const title = movie.title || movie.name || movie.Title || "Untitled";
+  const releaseDate = movie.release_date || movie.first_air_date || movie.Year;
+  const formattedDate = releaseDate
+    ? new Date(releaseDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      })
+    : "N/A";
+
+  const vote = movie.vote_average ? Math.round(movie.vote_average * 10) : null;
+
+  const ratingColor =
+    vote >= 75
+      ? "border-green-500"
+      : vote >= 60
+      ? "border-yellow-400"
+      : "border-red-500";
+
+  return (
+    <div className="relative min-w-[160px] flex flex-col items-center pb-8">
+      <div className="relative w-full flex flex-col items-center">
+        <div className="relative z-20 w-full rounded-xl overflow-hidden shadow-lg">
+          <Link to={`/movie/${movieId}`} state={{ movie, searchQuery }}>
+            <img
+              src={imgSrc}
+              alt={title}
+              className="w-full h-56 object-cover rounded-xl transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-lg"
+            />
+          </Link>
+
+          {/* Menu button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setMenuOpen(!menuOpen);
+            }}
+            className="absolute top-2 right-2 z-30 text-white bg-black/60 p-1 rounded-full hover:bg-black/80"
+          >
+            <FaEllipsisV size={14} />
+          </button>
+
+          {/* Dropdown Menu */}
+          {menuOpen && (
+            <ul className="absolute top-10 right-2 bg-white text-sm rounded shadow-md w-44 z-40">
+              <li
+                onClick={() => setMenuOpen(false)}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              >
+                <FaListUl className="text-black" />
+                Add to List
+              </li>
+              <li
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleFavorite(movie);
+                  setMenuOpen(false);
+                }}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              >
+                <FaHeart className="text-black" />
+                Favorite
+              </li>
+              <li
+                onClick={() => setMenuOpen(false)}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              >
+                <FaBookmark className="text-black" />
+                Watchlist
+              </li>
+              <li
+                onClick={() => setMenuOpen(false)}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+              >
+                <FaStar className="text-black" />
+                Your Rating
+              </li>
+            </ul>
+          )}
         </div>
-      </Link>
+
+        {/* Title & Release Date */}
+        <div className="mt-8 text-center z-10 w-full">
+          <h3 className="text-sm font-bold truncate max-w-[150px] mx-auto">{title}</h3>
+          <p className="text-xs text-gray-500">{formattedDate}</p>
+        </div>
+
+        {/* Rating Circle */}
+        {vote !== null && (
+          <div
+            className={`absolute left-2 w-10 h-10 rounded-full border-4 ${ratingColor} bg-black bg-opacity-80 text-white flex items-center justify-center text-xs font-bold z-30`}
+            style={{ bottom: 45 }}
+          >
+            {vote}%
+          </div>
+        )}
+      </div>
     </div>
   );
 }
