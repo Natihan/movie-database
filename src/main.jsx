@@ -12,8 +12,11 @@ import NowPlayingMovies from "./pages/NowPlayingMovies.jsx";
 import UpcomingMovies from "./pages/UpcomingMovies.jsx";
 import TopRatedMovies from "./pages/TopRatedMovies.jsx";
 
-// New pages for TV Shows and People (reuse PopularMovies)
 import PopularTVShows from "./pages/PopularTVShows.jsx";
+import OnTV from "./pages/OnTV.jsx";
+import AiringToday from "./pages/AiringToday.jsx";
+import TopRatedTVShows from "./pages/TopRatedTVShows.jsx"; // ✅ Added import for Top Rated TV Shows
+
 import PopularPeople from "./pages/PopularPeople.jsx";
 
 import "./index.css";
@@ -33,8 +36,13 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="movies/upcoming" element={<UpcomingMovies />} />
           <Route path="movies/top-rated" element={<TopRatedMovies />} />
 
-          {/* TV Shows and People */}
+          {/* TV Shows */}
           <Route path="tv/popular" element={<PopularTVShows />} />
+          <Route path="tv/on-tv" element={<OnTV />} /> {/* ✅ Path updated */}
+          <Route path="tv/airing-today" element={<AiringToday />} />
+          <Route path="tv/top-rated" element={<TopRatedTVShows />} /> {/* ✅ New Top Rated TV route */}
+
+          {/* People */}
           <Route path="person/popular" element={<PopularPeople />} />
         </Route>
       </Routes>

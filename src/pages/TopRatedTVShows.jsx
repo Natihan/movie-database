@@ -1,8 +1,8 @@
-// src/pages/TopRatedMovies.jsx
+// src/pages/TopRatedTVShows.jsx
 import React, { useEffect, useState } from "react";
 import { useTrendingMovies } from "../hooks/useTrendingMovies";
 
-export default function TopRatedMovies() {
+export default function TopRatedTVShows() {
   const {
     popularMovies,
     loadingPopular,
@@ -12,32 +12,29 @@ export default function TopRatedMovies() {
   } = useTrendingMovies();
 
   const [selectedGenre, setSelectedGenre] = useState(null);
-  const [watchStatus, setWatchStatus] = useState("all"); // all, watched, unwatched
-  const [releaseYearFilter, setReleaseYearFilter] = useState(""); // YYYY or ""
+  const [watchStatus, setWatchStatus] = useState("all");
+  const [releaseYearFilter, setReleaseYearFilter] = useState("");
 
-  // Simulated watched movie IDs (could be from localStorage or user profile)
-  const [watchedMovieIds] = useState(() => new Set([278, 238, 155])); // example movie IDs
+  const [watchedShowIds] = useState(() => new Set([1399, 1412, 82856])); // Example TV IDs
 
-  // Fetch Top Rated Movies on mount
   useEffect(() => {
-    fetchPopularMovies(1, "movie", "top_rated");
+    fetchPopularMovies(1, "tv", "top_rated");
   }, []);
 
-  // Apply filters
-  const filteredMovies = popularMovies.filter((movie) => {
+  const filteredShows = popularMovies.filter((show) => {
     const matchesGenre = selectedGenre
-      ? movie.genre_names.includes(genreMap[selectedGenre])
+      ? show.genre_names.includes(genreMap[selectedGenre])
       : true;
 
-    const movieYear = movie.release_date
-      ? parseInt(movie.release_date.slice(0, 4), 10)
+    const showYear = show.first_air_date
+      ? parseInt(show.first_air_date.slice(0, 4), 10)
       : null;
 
     const matchesYear = releaseYearFilter
-      ? movieYear && movieYear >= parseInt(releaseYearFilter, 10)
+      ? showYear && showYear >= parseInt(releaseYearFilter, 10)
       : true;
 
-    const isWatched = watchedMovieIds.has(movie.id);
+    const isWatched = watchedShowIds.has(show.id);
     const matchesWatch =
       watchStatus === "watched"
         ? isWatched
@@ -54,7 +51,6 @@ export default function TopRatedMovies() {
       <aside className="w-72 p-6 border-r bg-gray-50 min-h-screen">
         <h2 className="text-xl font-bold mb-4">Filters</h2>
 
-        {/* Genre Filter */}
         <div className="mb-4">
           <label className="block font-medium mb-1">Genre</label>
           <select
@@ -72,7 +68,6 @@ export default function TopRatedMovies() {
           </select>
         </div>
 
-        {/* Watch Status Filter */}
         <div className="mb-4">
           <label className="block font-medium mb-1">Watch Status</label>
           <select
@@ -86,12 +81,11 @@ export default function TopRatedMovies() {
           </select>
         </div>
 
-        {/* Release Date Filter */}
         <div className="mb-4">
           <label className="block font-medium mb-1">Released After Year</label>
           <input
             type="number"
-            placeholder="e.g. 2000"
+            placeholder="e.g. 2015"
             className="w-full border p-2 rounded"
             value={releaseYearFilter}
             onChange={(e) => setReleaseYearFilter(e.target.value)}
@@ -101,25 +95,25 @@ export default function TopRatedMovies() {
 
       {/* Main content */}
       <main className="flex-1 p-6">
-        <h1 className="text-3xl font-semibold mb-6">Top Rated Movies</h1>
+        <h1 className="text-3xl font-semibold mb-6">Top Rated TV Shows</h1>
 
-        {loadingPopular && <p>Loading movies...</p>}
+        {loadingPopular && <p>Loading shows...</p>}
         {errorPopular && <p className="text-red-500">{errorPopular}</p>}
 
-        {filteredMovies.length === 0 && (
-          <p className="text-gray-500">No movies match your filters.</p>
+        {filteredShows.length === 0 && (
+          <p className="text-gray-500">No shows match your filters.</p>
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-          {filteredMovies.map((movie) => (
+          {filteredShows.map((show) => (
             <div
-              key={movie.id}
+              key={show.id}
               className="border rounded overflow-hidden shadow hover:shadow-lg transition"
             >
-              {movie.poster_url ? (
+              {show.poster_url ? (
                 <img
-                  src={movie.poster_url}
-                  alt={movie.title}
+                  src={show.poster_url}
+                  alt={show.name}
                   className="w-full h-72 object-cover"
                 />
               ) : (
@@ -128,19 +122,19 @@ export default function TopRatedMovies() {
                 </div>
               )}
               <div className="p-3">
-                <h3 className="font-bold text-lg truncate">{movie.title}</h3>
-                <p className="text-sm text-gray-600">{movie.release_date}</p>
+                <h3 className="font-bold text-lg truncate">{show.name}</h3>
+                <p className="text-sm text-gray-600">{show.first_air_date}</p>
                 <p className="text-sm mb-1">
-                  Genres: {movie.genre_names.join(", ") || "N/A"}
+                  Genres: {show.genre_names.join(", ") || "N/A"}
                 </p>
                 <span
                   className={`inline-block px-2 py-1 text-xs rounded ${
-                    watchedMovieIds.has(movie.id)
+                    watchedShowIds.has(show.id)
                       ? "bg-green-100 text-green-800"
                       : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
-                  {watchedMovieIds.has(movie.id) ? "Watched" : "Unwatched"}
+                  {watchedShowIds.has(show.id) ? "Watched" : "Unwatched"}
                 </span>
               </div>
             </div>

@@ -41,7 +41,7 @@ function Layout() {
             <li className="relative group">
               <span className="hover:text-blue-600 cursor-pointer">People</span>
               <div className={dropdownStyle}>
-                <Link to="/people/popular" className="block px-4 py-2 hover:bg-gray-100">Popular People</Link>
+                <Link to="/person/popular" className="block px-4 py-2 hover:bg-gray-100">Popular People</Link>
               </div>
             </li>
 
@@ -49,21 +49,11 @@ function Layout() {
             <li className="relative group">
               <span className="hover:text-blue-600 cursor-pointer">More</span>
               <div className={dropdownStyle}>
+                <Link to="/favorites" className="block px-4 py-2 hover:bg-gray-100">Favorites</Link>
+                <Link to="/watchlist" className="block px-4 py-2 hover:bg-gray-100">Watchlist</Link>
                 <Link to="/discussions" className="block px-4 py-2 hover:bg-gray-100">Discussions</Link>
                 <Link to="/leaderboard" className="block px-4 py-2 hover:bg-gray-100">Leaderboard</Link>
               </div>
-            </li>
-
-            {/* Favorites */}
-            <li>
-              <Link
-                to="/favorites"
-                className={`hover:text-blue-600 ${
-                  location.pathname === "/favorites" ? "text-blue-600 font-semibold" : ""
-                }`}
-              >
-                Favorites
-              </Link>
             </li>
           </ul>
         </div>
