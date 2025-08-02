@@ -1,8 +1,14 @@
-import { Link } from "react-router-dom";
-import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const dropdownRef = useRef();
 
   const movieLinks = {
     Popular: "/movies/popular",
@@ -22,11 +28,32 @@ export default function Navbar() {
     "Popular People": "/person/popular",
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleDropdown = (name) =>
+    setOpenDropdown((prev) => (prev === name ? null : name));
+
   const renderDropdown = (links) => (
     <ul className="absolute left-0 mt-2 bg-white text-black shadow rounded py-2 w-44 z-10">
       {Object.entries(links).map(([label, path]) => (
         <li key={label} className="px-4 py-2 hover:bg-gray-100">
-          <Link to={path} onClick={() => setOpenDropdown(null)}>
+          <Link
+            to={path}
+            onClick={() => {
+              setOpenDropdown(null);
+              setMobileMenuOpen(false); // Close mobile menu on link click
+            }}
+          >
             {label}
           </Link>
         </li>
@@ -34,19 +61,58 @@ export default function Navbar() {
     </ul>
   );
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+      setMobileMenuOpen(false); // Close menu after logout
+      setProfileMenuOpen(false);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
+  const getProfileImage = () => {
+    if (user?.photoURL) return user.photoURL;
+    return "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+  };
+
+  const profileLinks = [
+    { label: "Home", to: "/" },
+    { label: "Profile", to: "/profile" },
+    { label: "Reviews", to: "/profile/reviews" },
+    { label: "Watched List", to: "/profile/watchlist" },
+    { label: "Likes", to: "/profile/likes" },
+  ];
+
   return (
-    <nav className="bg-[#032541] text-white px-6 py-4 flex justify-between items-center">
+    <nav
+      className="bg-blue-950 text-white px-6 py-4 flex justify-between items-center relative"
+      ref={dropdownRef}
+    >
       <h1 className="text-2xl font-bold">
-        <Link to="/">TMDB</Link>
+        <Link to="/" onClick={() => setMobileMenuOpen(false)}>
+          TMDB
+        </Link>
       </h1>
 
-      <ul className="flex items-center space-x-6 relative">
-        {/* Movies Dropdown */}
+      {/* Hamburger menu */}
+      <button
+        className="lg:hidden text-white text-3xl"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+      >
+        ☰
+      </button>
+
+      {/* Main nav links */}
+      <ul
+        className={`${
+          mobileMenuOpen ? "block" : "hidden"
+        } lg:flex lg:items-center lg:space-x-6 absolute lg:static top-full left-0 w-full lg:w-auto bg-blue-950 text-white z-50 p-4 lg:p-0 space-y-4 lg:space-y-0`}
+      >
         <li className="relative">
           <button
-            onClick={() =>
-              setOpenDropdown(openDropdown === "movies" ? null : "movies")
-            }
+            onClick={() => toggleDropdown("movies")}
             className="hover:underline"
           >
             Movies
@@ -54,12 +120,9 @@ export default function Navbar() {
           {openDropdown === "movies" && renderDropdown(movieLinks)}
         </li>
 
-        {/* TV Shows Dropdown */}
         <li className="relative">
           <button
-            onClick={() =>
-              setOpenDropdown(openDropdown === "tv" ? null : "tv")
-            }
+            onClick={() => toggleDropdown("tv")}
             className="hover:underline"
           >
             TV Shows
@@ -67,12 +130,9 @@ export default function Navbar() {
           {openDropdown === "tv" && renderDropdown(tvLinks)}
         </li>
 
-        {/* People Dropdown */}
         <li className="relative">
           <button
-            onClick={() =>
-              setOpenDropdown(openDropdown === "people" ? null : "people")
-            }
+            onClick={() => toggleDropdown("people")}
             className="hover:underline"
           >
             People
@@ -80,12 +140,88 @@ export default function Navbar() {
           {openDropdown === "people" && renderDropdown(peopleLinks)}
         </li>
 
-        {/* Favorites */}
         <li>
-          <Link to="/favorites" className="hover:underline">
+          <Link
+            to="/profile/favorites"
+            className="hover:underline"
+            onClick={() => setMobileMenuOpen(false)}
+          >
             Favorites
           </Link>
         </li>
+
+        <li>
+          <Link
+            to="/profile/watchlist"
+            className="hover:underline"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Watchlist
+          </Link>
+        </li>
+
+        {!user ? (
+          <>
+            <li>
+              <Link
+                to="/login"
+                className="hover:underline"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Login
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/signup"
+                className="hover:underline"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Sign Up
+              </Link>
+            </li>
+          </>
+        ) : (
+          <li className="relative">
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="focus:outline-none"
+            >
+              <img
+                src={getProfileImage()}
+                alt={user?.displayName || "User profile"}
+                className="w-8 h-8 rounded-full object-cover border border-white"
+              />
+            </button>
+
+            {profileMenuOpen && (
+              <ul className="absolute right-0 mt-2 w-48 bg-white text-black shadow-lg rounded-lg z-50">
+                {profileLinks.map(({ label, to }) => (
+                  <li key={label}>
+                    <Link
+                      to={to}
+                      className="block px-4 py-2 hover:bg-gray-100"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                  >
+                    Logout
+                  </button>
+                </li>
+              </ul>
+            )}
+          </li>
+        )}
       </ul>
     </nav>
   );

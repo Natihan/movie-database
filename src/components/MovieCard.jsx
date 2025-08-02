@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   FaListUl,
@@ -12,6 +12,7 @@ const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
 
   const imgSrc =
     movie.poster_path
@@ -41,6 +42,31 @@ function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
       : vote >= 60
       ? "border-yellow-400"
       : "border-red-500";
+
+  // 📌 Watchlist logic
+  useEffect(() => {
+    const stored = localStorage.getItem("watchlist");
+    const current = stored ? JSON.parse(stored) : [];
+    const exists = current.some((item) => item.id === movie.id);
+    setIsInWatchlist(exists);
+  }, [movie.id]);
+
+  const toggleWatchlist = () => {
+    const stored = localStorage.getItem("watchlist");
+    let current = stored ? JSON.parse(stored) : [];
+
+    const exists = current.some((item) => item.id === movie.id);
+
+    if (exists) {
+      current = current.filter((item) => item.id !== movie.id);
+    } else {
+      current.push(movie);
+    }
+
+    localStorage.setItem("watchlist", JSON.stringify(current));
+    setIsInWatchlist(!exists);
+    setMenuOpen(false);
+  };
 
   return (
     <div className="relative min-w-[160px] flex flex-col items-center pb-8">
@@ -87,11 +113,11 @@ function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
                 Favorite
               </li>
               <li
-                onClick={() => setMenuOpen(false)}
+                onClick={toggleWatchlist}
                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
               >
                 <FaBookmark className="text-black" />
-                Watchlist
+                {isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
               </li>
               <li
                 onClick={() => setMenuOpen(false)}
@@ -106,7 +132,9 @@ function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
 
         {/* Title & Release Date */}
         <div className="mt-8 text-center z-10 w-full">
-          <h3 className="text-sm font-bold truncate max-w-[150px] mx-auto">{title}</h3>
+          <h3 className="text-sm font-bold truncate max-w-[150px] mx-auto">
+            {title}
+          </h3>
           <p className="text-xs text-gray-500">{formattedDate}</p>
         </div>
 
