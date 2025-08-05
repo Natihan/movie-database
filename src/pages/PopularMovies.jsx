@@ -1,14 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useTrendingMovies } from "../hooks/useTrendingMovies";
 import MovieList from "../components/MovieList";
-
-const allGenres = [
-  "Action", "Adventure", "Animation", "Comedy", "Crime",
-  "Documentary", "Drama", "Family", "Fantasy", "History",
-  "Horror", "Music", "Mystery", "Romance", "Science Fiction",
-  "TV Movie", "Thriller", "War", "Western"
-];
+import SidebarFilters from "../components/SidebarFilters";
+import Drawer from "../components/Drawer";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -21,8 +16,9 @@ export default function PopularMovies() {
   const {
     fetchPopularMovies,
     popularMovies,
-    loadingTrending,
-    errorTrending
+    loadingPopular,
+    errorPopular,
+    genreMap
   } = useTrendingMovies();
 
   const [favorites, setFavorites] = useState([]);
@@ -31,7 +27,19 @@ export default function PopularMovies() {
   const [releaseTo, setReleaseTo] = useState("");
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [filteredMovies, setFilteredMovies] = useState([]);
-  const [page, setPage] = useState(1); // Pagination
+  const [page, setPage] = useState(1);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
+
+  useEffect(() => {
+    if (showFiltersMobile) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showFiltersMobile]);
 
   useEffect(() => {
     fetchPopularMovies(page, type);
@@ -46,17 +54,12 @@ export default function PopularMovies() {
     setFilteredMovies(popularMovies);
   }, [popularMovies]);
 
-  const toggleFavorite = (movie) => {
-    const exists = favorites.some(fav => fav.id === movie.id);
-    const updated = exists
-      ? favorites.filter(fav => fav.id !== movie.id)
-      : [...favorites, movie];
-    setFavorites(updated);
-    localStorage.setItem("favorites", JSON.stringify(updated));
-  };
+  const applyFilters = useCallback(() => {
+    setPage(1);
 
-  const applyFilters = () => {
     const movies = popularMovies.filter((movie) => {
+      if (!movie.release_date) return false;
+
       const releaseDate = new Date(movie.release_date);
       const fromDate = releaseFrom ? new Date(releaseFrom) : null;
       const toDate = releaseTo ? new Date(releaseTo) : null;
@@ -73,13 +76,22 @@ export default function PopularMovies() {
       const matchesGenre =
         selectedGenres.length === 0 ||
         selectedGenres.some((genre) =>
-          movie.genre_names?.includes(genre)
+          movie.genre_ids?.includes(parseInt(genre))
         );
 
       return matchesSeen && matchesRelease && matchesGenre;
     });
 
     setFilteredMovies(movies);
+  }, [popularMovies, releaseFrom, releaseTo, selectedGenres, seenFilter, favorites]);
+
+  const toggleFavorite = (movie) => {
+    const exists = favorites.some(fav => fav.id === movie.id);
+    const updated = exists
+      ? favorites.filter(fav => fav.id !== movie.id)
+      : [...favorites, movie];
+    setFavorites(updated);
+    localStorage.setItem("favorites", JSON.stringify(updated));
   };
 
   const handleLoadMore = () => {
@@ -91,13 +103,28 @@ export default function PopularMovies() {
     type === "person" ? "🌟 Popular People" :
     "🔥 Popular Movies";
 
+  const genreOptions = Object.entries(genreMap).map(([id, name]) => ({ id, name }));
+
   return (
     <div className="flex flex-col lg:flex-row max-w-7xl mx-auto p-4 space-y-8 lg:space-y-0 lg:space-x-8">
-      {/* Movie List */}
       <div className="flex-1">
-        <h2 className="text-3xl font-bold mb-4">{heading}</h2>
-        {loadingTrending && page === 1 && <p>Loading...</p>}
-        {errorTrending && <p className="text-red-500">{errorTrending}</p>}
+        <div className="mb-4 flex items-center justify-between lg:hidden">
+          <h2 className="text-2xl font-bold">{heading}</h2>
+          {type !== "person" && (
+            <button
+              className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm"
+              onClick={() => setShowFiltersMobile(true)}
+              aria-label="Show filters"
+            >
+              Show Filters
+            </button>
+          )}
+        </div>
+
+        <h2 className="text-3xl font-bold mb-4 hidden lg:block">{heading}</h2>
+
+        {loadingPopular && page === 1 && <p>Loading...</p>}
+        {errorPopular && <p className="text-red-500">{errorPopular}</p>}
 
         <MovieList
           movies={filteredMovies}
@@ -105,7 +132,7 @@ export default function PopularMovies() {
           toggleFavorite={toggleFavorite}
         />
 
-        {!loadingTrending && (
+        {!loadingPopular && filteredMovies.length > 0 && (
           <div className="flex justify-center mt-6">
             <button
               onClick={handleLoadMore}
@@ -117,79 +144,46 @@ export default function PopularMovies() {
         )}
       </div>
 
-      {/* Filters Panel (hide for people) */}
       {type !== "person" && (
-        <aside className="w-full lg:w-80 bg-white rounded-2xl shadow-lg p-6 sticky top-24 h-fit">
-          <h3 className="text-xl font-semibold mb-4">🎛 Filters</h3>
-
-          {/* Seen Filter */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Watch Status</label>
-            <select
-              className="w-full border border-gray-300 rounded px-2 py-1"
-              value={seenFilter}
-              onChange={(e) => setSeenFilter(e.target.value)}
-            >
-              <option value="all">Everything</option>
-              <option value="unseen">Movies I Haven't Seen</option>
-              <option value="seen">Movies I Have Seen</option>
-            </select>
-          </div>
-
-          {/* Release Date Range */}
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Release Date</label>
-            <div className="flex space-x-2">
-              <input
-                type="date"
-                className="w-1/2 border border-gray-300 rounded px-2 py-1"
-                value={releaseFrom}
-                onChange={(e) => setReleaseFrom(e.target.value)}
-                placeholder="From"
-              />
-              <input
-                type="date"
-                className="w-1/2 border border-gray-300 rounded px-2 py-1"
-                value={releaseTo}
-                onChange={(e) => setReleaseTo(e.target.value)}
-                placeholder="To"
-              />
-            </div>
-          </div>
-
-          {/* Genres */}
-          <div className="mb-6">
-            <label className="block font-medium mb-2">Genres</label>
-            <div className="max-h-48 overflow-y-auto space-y-1">
-              {allGenres.map((genre) => (
-                <label key={genre} className="block text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedGenres.includes(genre)}
-                    onChange={() =>
-                      setSelectedGenres((prev) =>
-                        prev.includes(genre)
-                          ? prev.filter((g) => g !== genre)
-                          : [...prev, genre]
-                      )
-                    }
-                    className="mr-2"
-                  />
-                  {genre}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Search Button */}
-          <button
-            onClick={applyFilters}
-            className="w-full bg-[#032541] text-white py-2 rounded-lg hover:bg-[#04375c] transition"
-          >
-            Search
-          </button>
-        </aside>
+        <div className="hidden lg:block">
+          <SidebarFilters
+            genres={genreOptions}
+            selectedGenres={selectedGenres}
+            setSelectedGenres={setSelectedGenres}
+            seenFilter={seenFilter}
+            setSeenFilter={setSeenFilter}
+            releaseFrom={releaseFrom}
+            setReleaseFrom={setReleaseFrom}
+            releaseTo={releaseTo}
+            setReleaseTo={setReleaseTo}
+            onApplyFilters={applyFilters}
+          />
+        </div>
       )}
+
+      <Drawer
+        isOpen={showFiltersMobile}
+        onClose={() => setShowFiltersMobile(false)}
+        title="Filters"
+        from="left"
+        backdropClassName="bg-black bg-opacity-90"
+      >
+        <SidebarFilters
+          genres={genreOptions}
+          selectedGenres={selectedGenres}
+          setSelectedGenres={setSelectedGenres}
+          seenFilter={seenFilter}
+          setSeenFilter={setSeenFilter}
+          releaseFrom={releaseFrom}
+          setReleaseFrom={setReleaseFrom}
+          releaseTo={releaseTo}
+          setReleaseTo={setReleaseTo}
+          onApplyFilters={() => {
+            applyFilters();
+            setShowFiltersMobile(false);
+          }}
+        />
+      </Drawer>
     </div>
   );
 }

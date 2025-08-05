@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -40,7 +40,7 @@ export function useTrendingMovies() {
       try {
         const [movieRes, tvRes] = await Promise.all([
           fetch(`${TMDB_BASE_URL}/genre/movie/list?api_key=${TMDB_API_KEY}&language=en-US`),
-          fetch(`${TMDB_BASE_URL}/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`)
+          fetch(`${TMDB_BASE_URL}/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`),
         ]);
         const movieData = await movieRes.json();
         const tvData = await tvRes.json();
@@ -58,229 +58,271 @@ export function useTrendingMovies() {
     fetchGenres();
   }, []);
 
-  const fetchPopularMovies = async (page = 1, type = "movie", category = "popular") => {
-    setLoadingPopular(true);
-    setErrorPopular("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/${type}/${category}`);
+  // Memoized fetchDiscover helper
+  const fetchDiscover = useCallback(
+    async ({ type = "movie", filters = {}, page = 1 }) => {
+      const url = new URL(`${TMDB_BASE_URL}/discover/${type}`);
       url.searchParams.set("api_key", TMDB_API_KEY);
       url.searchParams.set("language", "en-US");
       url.searchParams.set("page", page);
 
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const results = data.results || [];
-
-      const normalized = results.map((item) => ({
-        ...item,
-        release_date: item.release_date || item.first_air_date || "",
-        title: item.title || item.name || "",
-        genre_names: item.genre_ids?.map((id) => genreMap[id]) || [],
-        poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null
-      }));
-
-      setPopularMovies((prev) =>
-        page === 1 ? normalized : [...prev, ...normalized]
-      );
-    } catch (err) {
-      setErrorPopular(`Failed to fetch ${category} ${type}s.`);
-    } finally {
-      setLoadingPopular(false);
-    }
-  };
-
-  const fetchInTheaterMovies = async ({ region = "US", genreId = null } = {}) => {
-    setLoadingInTheater(true);
-    setErrorInTheater("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/movie/now_playing`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", 1);
-      url.searchParams.set("region", region);
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      let movies = data.results || [];
-
-      if (genreId) {
-        movies = movies.filter((m) => m.genre_ids.includes(genreId));
-      }
-
-      const normalized = movies.map((item) => ({
-        ...item,
-        title: item.title || item.name || "",
-        release_date: item.release_date || item.first_air_date || "",
-        genre_names: item.genre_ids?.map((id) => genreMap[id]) || [],
-        poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null
-      }));
-
-      setInTheaterMovies(normalized);
-    } catch (err) {
-      setErrorInTheater("Failed to fetch in-theater movies.");
-    } finally {
-      setLoadingInTheater(false);
-    }
-  };
-
-  const fetchUpcomingMovies = async (page = 1) => {
-    setLoadingUpcoming(true);
-    setErrorUpcoming("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/movie/upcoming`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", page);
-      url.searchParams.set("region", "US");
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const now = new Date();
-
-      const filtered = (data.results || []).filter(movie => {
-        const releaseDate = new Date(movie.release_date || "");
-        return releaseDate > now;
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value != null && value !== "") {
+          url.searchParams.set(key, value);
+        }
       });
 
-      const normalized = filtered.map((item) => ({
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to fetch discover ${type} data`);
+      const data = await res.json();
+
+      return (data.results || []).map((item) => ({
         ...item,
-        title: item.title || item.name || "",
         release_date: item.release_date || item.first_air_date || "",
-        genre_names: item.genre_ids?.map((id) => genreMap[id]) || [],
-        poster_url: item.poster_path
-          ? `${IMAGE_BASE_URL}${item.poster_path}`
-          : null,
-      }));
-
-      setUpcomingMovies((prev) =>
-        page === 1 ? normalized : [...prev, ...normalized]
-      );
-    } catch (err) {
-      setErrorUpcoming("Failed to fetch upcoming movies.");
-    } finally {
-      setLoadingUpcoming(false);
-    }
-  };
-
-  const fetchAiringTodayShows = async (page = 1) => {
-    setLoadingAiringToday(true);
-    setErrorAiringToday("");
-
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/tv/airing_today`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", page);
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const normalized = (data.results || []).map((item) => ({
-        ...item,
-        title: item.name || item.title || "",
-        release_date: item.first_air_date || item.release_date || "",
-        genre_names: [],
-        poster_url: item.poster_path
-          ? `${IMAGE_BASE_URL}${item.poster_path}`
-          : null,
-      }));
-
-      setAiringTodayShows((prev) =>
-        page === 1 ? normalized : [...prev, ...normalized]
-      );
-    } catch (err) {
-      setErrorAiringToday("Failed to fetch TV shows airing today.");
-    } finally {
-      setLoadingAiringToday(false);
-    }
-  };
-
-  const fetchOnTVShows = async (page = 1) => {
-    if (Object.keys(genreMap).length === 0) return;
-    setLoadingOnTV(true);
-    setErrorOnTV("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/tv/on_the_air`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", page);
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      const normalized = (data.results || []).map((item) => ({
-        ...item,
-        title: item.name || item.title || "",
-        release_date: item.first_air_date || item.release_date || "",
-        genre_names: item.genre_ids?.map((id) => genreMap[id]) || [],
+        title: item.title || item.name || "",
+        genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
         poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
       }));
+    },
+    [genreMap]
+  );
 
-      setOnTVShows((prev) => (page === 1 ? normalized : [...prev, ...normalized]));
-    } catch (err) {
-      setErrorOnTV("Failed to fetch currently on TV shows.");
-    } finally {
-      setLoadingOnTV(false);
-    }
-  };
+  const fetchPopularMovies = useCallback(
+    async (page = 1, filters = null) => {
+      setLoadingPopular(true);
+      setErrorPopular("");
+      try {
+        let normalized;
+        if (filters && Object.keys(filters).length > 0) {
+          normalized = await fetchDiscover({ type: "movie", filters, page });
+        } else {
+          const url = new URL(`${TMDB_BASE_URL}/movie/popular`);
+          url.searchParams.set("api_key", TMDB_API_KEY);
+          url.searchParams.set("language", "en-US");
+          url.searchParams.set("page", page);
 
-  const fetchPopularPeople = async (page = 1) => {
-    setLoadingPopularPeople(true);
-    setErrorPopularPeople("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/person/popular`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", page);
+          const res = await fetch(url);
+          const data = await res.json();
+          const results = data.results || [];
 
-      const res = await fetch(url);
-      const data = await res.json();
+          normalized = results.map((item) => ({
+            ...item,
+            release_date: item.release_date || item.first_air_date || "",
+            title: item.title || item.name || "",
+            genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
+            poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+          }));
+        }
+        setPopularMovies(page === 1 ? normalized : (prev) => [...prev, ...normalized]);
+      } catch (err) {
+        setErrorPopular(err.message || "Failed to fetch popular movies.");
+      } finally {
+        setLoadingPopular(false);
+      }
+    },
+    [fetchDiscover, genreMap]
+  );
 
-      const normalized = (data.results || []).map((person) => ({
-        id: person.id,
-        name: person.name,
-        profile_url: person.profile_path ? `${IMAGE_BASE_URL}${person.profile_path}` : null,
-        known_for: person.known_for || [],
-      }));
+  const fetchInTheaterMovies = useCallback(
+    async ({ region = "US", genreId = null, page = 1 } = {}) => {
+      setLoadingInTheater(true);
+      setErrorInTheater("");
+      try {
+        if (genreId) {
+          const filters = {
+            region,
+            with_genres: genreId,
+            "release_date.gte": new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0],
+            "release_date.lte": new Date().toISOString().split("T")[0],
+            sort_by: "popularity.desc",
+          };
+          const movies = await fetchDiscover({ type: "movie", filters, page });
+          setInTheaterMovies(movies);
+        } else {
+          const url = new URL(`${TMDB_BASE_URL}/movie/now_playing`);
+          url.searchParams.set("api_key", TMDB_API_KEY);
+          url.searchParams.set("language", "en-US");
+          url.searchParams.set("page", page);
+          url.searchParams.set("region", region);
 
-      setPopularPeople((prev) => (page === 1 ? normalized : [...prev, ...normalized]));
-    } catch (err) {
-      setErrorPopularPeople("Failed to fetch popular people.");
-    } finally {
-      setLoadingPopularPeople(false);
-    }
-  };
+          const res = await fetch(url);
+          const data = await res.json();
+          const movies = (data.results || []).map((item) => ({
+            ...item,
+            title: item.title || item.name || "",
+            release_date: item.release_date || item.first_air_date || "",
+            genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
+            poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+          }));
+          setInTheaterMovies(movies);
+        }
+      } catch (err) {
+        setErrorInTheater(err.message || "Failed to fetch in-theater movies.");
+      } finally {
+        setLoadingInTheater(false);
+      }
+    },
+    [fetchDiscover, genreMap]
+  );
 
-  const fetchTopRatedTVShows = async (page = 1) => {
-    setLoadingTopRatedTV(true);
-    setErrorTopRatedTV("");
-    try {
-      const url = new URL(`${TMDB_BASE_URL}/tv/top_rated`);
-      url.searchParams.set("api_key", TMDB_API_KEY);
-      url.searchParams.set("language", "en-US");
-      url.searchParams.set("page", page);
+  const fetchUpcomingMovies = useCallback(
+    async (page = 1, filters = {}) => {
+      setLoadingUpcoming(true);
+      setErrorUpcoming("");
+      try {
+        if (!filters["release_date.gte"]) {
+          filters["release_date.gte"] = new Date().toISOString().split("T")[0];
+        }
+        const movies = await fetchDiscover({ type: "movie", filters, page });
+        setUpcomingMovies(page === 1 ? movies : (prev) => [...prev, ...movies]);
+      } catch (err) {
+        setErrorUpcoming(err.message || "Failed to fetch upcoming movies.");
+      } finally {
+        setLoadingUpcoming(false);
+      }
+    },
+    [fetchDiscover]
+  );
 
-      const res = await fetch(url);
-      const data = await res.json();
+  const fetchAiringTodayShows = useCallback(
+    async (page = 1) => {
+      setLoadingAiringToday(true);
+      setErrorAiringToday("");
+      try {
+        const url = new URL(`${TMDB_BASE_URL}/tv/airing_today`);
+        url.searchParams.set("api_key", TMDB_API_KEY);
+        url.searchParams.set("language", "en-US");
+        url.searchParams.set("page", page);
 
-      const normalized = (data.results || []).map((item) => ({
-        ...item,
-        title: item.name || item.title || "",
-        release_date: item.first_air_date || item.release_date || "",
-        genre_names: item.genre_ids?.map((id) => genreMap[id]) || [],
-        poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
-      }));
+        const res = await fetch(url);
+        const data = await res.json();
 
-      setTopRatedTVShows((prev) => (page === 1 ? normalized : [...prev, ...normalized]));
-    } catch (err) {
-      setErrorTopRatedTV("Failed to fetch top-rated TV shows.");
-    } finally {
-      setLoadingTopRatedTV(false);
-    }
-  };
+        const normalized = (data.results || []).map((item) => ({
+          ...item,
+          title: item.name || item.title || "",
+          release_date: item.first_air_date || item.release_date || "",
+          genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
+          poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+        }));
+
+        setAiringTodayShows(page === 1 ? normalized : (prev) => [...prev, ...normalized]);
+      } catch (err) {
+        setErrorAiringToday(err.message || "Failed to fetch TV shows airing today.");
+      } finally {
+        setLoadingAiringToday(false);
+      }
+    },
+    [genreMap]
+  );
+
+  const fetchOnTVShows = useCallback(
+    async (page = 1, filters = {}) => {
+      if (Object.keys(genreMap).length === 0) return;
+      setLoadingOnTV(true);
+      setErrorOnTV("");
+      try {
+        if (filters && Object.keys(filters).length > 0) {
+          const shows = await fetchDiscover({ type: "tv", filters, page });
+          setOnTVShows(page === 1 ? shows : (prev) => [...prev, ...shows]);
+        } else {
+          const url = new URL(`${TMDB_BASE_URL}/tv/on_the_air`);
+          url.searchParams.set("api_key", TMDB_API_KEY);
+          url.searchParams.set("language", "en-US");
+          url.searchParams.set("page", page);
+
+          const res = await fetch(url);
+          const data = await res.json();
+
+          const normalized = (data.results || []).map((item) => ({
+            ...item,
+            title: item.name || item.title || "",
+            release_date: item.first_air_date || item.release_date || "",
+            genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
+            poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+          }));
+
+          setOnTVShows(page === 1 ? normalized : (prev) => [...prev, ...normalized]);
+        }
+      } catch (err) {
+        setErrorOnTV(err.message || "Failed to fetch currently on TV shows.");
+      } finally {
+        setLoadingOnTV(false);
+      }
+    },
+    [fetchDiscover, genreMap]
+  );
+
+  const fetchPopularPeople = useCallback(
+    async (page = 1) => {
+      setLoadingPopularPeople(true);
+      setErrorPopularPeople("");
+      try {
+        const url = new URL(`${TMDB_BASE_URL}/person/popular`);
+        url.searchParams.set("api_key", TMDB_API_KEY);
+        url.searchParams.set("language", "en-US");
+        url.searchParams.set("page", page);
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const normalized = (data.results || []).map((person) => ({
+          id: person.id,
+          name: person.name,
+          profile_url: person.profile_path ? `${IMAGE_BASE_URL}${person.profile_path}` : null,
+          known_for: (person.known_for || []).map((item) => ({
+            id: item.id,
+            title: item.title || item.name || "",
+            poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+          })),
+        }));
+
+        setPopularPeople(page === 1 ? normalized : (prev) => [...prev, ...normalized]);
+      } catch (err) {
+        setErrorPopularPeople(err.message || "Failed to fetch popular people.");
+      } finally {
+        setLoadingPopularPeople(false);
+      }
+    },
+    []
+  );
+
+  const fetchTopRatedTVShows = useCallback(
+    async (page = 1) => {
+      setLoadingTopRatedTV(true);
+      setErrorTopRatedTV("");
+      try {
+        const url = new URL(`${TMDB_BASE_URL}/tv/top_rated`);
+        url.searchParams.set("api_key", TMDB_API_KEY);
+        url.searchParams.set("language", "en-US");
+        url.searchParams.set("page", page);
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const normalized = (data.results || []).map((item) => ({
+          ...item,
+          title: item.name || item.title || "",
+          release_date: item.first_air_date || item.release_date || "",
+          genre_names: item.genre_ids?.map((id) => genreMap[id]).filter(Boolean) || [],
+          poster_url: item.poster_path ? `${IMAGE_BASE_URL}${item.poster_path}` : null,
+        }));
+
+        setTopRatedTVShows(page === 1 ? normalized : (prev) => [...prev, ...normalized]);
+      } catch (err) {
+        setErrorTopRatedTV(err.message || "Failed to fetch top rated TV shows.");
+      } finally {
+        setLoadingTopRatedTV(false);
+      }
+    },
+    [genreMap]
+  );
+
+  // Optional: Load popular movies initially or other default data, for example:
+  useEffect(() => {
+    fetchPopularMovies();
+  }, [fetchPopularMovies]);
 
   return {
     popularMovies,

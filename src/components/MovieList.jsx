@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import MovieCard from "./MovieCard";
+import { v4 as uuidv4 } from "uuid"; // ✅ Use UUID to prevent duplicate keys
 
 function MovieList({
   movies = [],
@@ -22,19 +24,29 @@ function MovieList({
 
   return (
     <div className={containerClass}>
-      {movies.map((movie) => {
+      {movies.map((movie, index) => {
         const isFavorite = favorites.some(
           (fav) => fav.imdbID === movie.imdbID || fav.id === movie.id
         );
 
+        // ✅ Ensure key is always unique
+        const movieKey = movie.id || movie.imdbID || uuidv4();
+        const movieId = movie.id || movie.imdbID;
+
         return (
-          <MovieCard
-            key={movie.imdbID || movie.id}
-            movie={movie}
-            isFavorite={isFavorite}
-            toggleFavorite={toggleFavorite}
-            searchQuery={searchQuery}
-          />
+          <Link
+            key={movieKey}
+            to={`/movie/${movieId}`}
+            state={{ movie, searchQuery }}
+            className="hover:scale-105 transform transition"
+          >
+            <MovieCard
+              movie={movie}
+              isFavorite={isFavorite}
+              toggleFavorite={toggleFavorite}
+              searchQuery={searchQuery}
+            />
+          </Link>
         );
       })}
     </div>

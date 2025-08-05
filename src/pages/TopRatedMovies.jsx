@@ -1,6 +1,8 @@
-// src/pages/TopRatedMovies.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTrendingMovies } from "../hooks/useTrendingMovies";
+import MovieList from "../components/MovieList";
+import SidebarFilters from "../components/SidebarFilters";
+import Drawer from "../components/Drawer";
 
 export default function TopRatedMovies() {
   const {
@@ -11,142 +13,167 @@ export default function TopRatedMovies() {
     genreMap,
   } = useTrendingMovies();
 
-  const [selectedGenre, setSelectedGenre] = useState(null);
-  const [watchStatus, setWatchStatus] = useState("all"); // all, watched, unwatched
-  const [releaseYearFilter, setReleaseYearFilter] = useState(""); // YYYY or ""
+  const [favorites, setFavorites] = useState([]);
+  const [seenFilter, setSeenFilter] = useState("all"); // all, seen, unseen
+  const [releaseFrom, setReleaseFrom] = useState("");
+  const [releaseTo, setReleaseTo] = useState("");
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [filteredMovies, setFilteredMovies] = useState([]);
+  const [page, setPage] = useState(1);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
 
-  // Simulated watched movie IDs (could be from localStorage or user profile)
-  const [watchedMovieIds] = useState(() => new Set([278, 238, 155])); // example movie IDs
-
-  // Fetch Top Rated Movies on mount
+  // Load favorites from localStorage
   useEffect(() => {
-    fetchPopularMovies(1, "movie", "top_rated");
+    const stored = localStorage.getItem("favorites");
+    if (stored) setFavorites(JSON.parse(stored));
   }, []);
 
+  // Prevent scroll when mobile drawer is open
+  useEffect(() => {
+    if (showFiltersMobile) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [showFiltersMobile]);
+
+  // Fetch top rated movies when page changes
+  useEffect(() => {
+    fetchPopularMovies(page, "movie", "top_rated"); // third param is category/type for top rated
+  }, [page, fetchPopularMovies]);
+
+  // Initially show all fetched movies
+  useEffect(() => {
+    setFilteredMovies(popularMovies);
+  }, [popularMovies]);
+
   // Apply filters
-  const filteredMovies = popularMovies.filter((movie) => {
-    const matchesGenre = selectedGenre
-      ? movie.genre_names.includes(genreMap[selectedGenre])
-      : true;
+  const applyFilters = useCallback(() => {
+    setPage(1); // reset pagination on filter apply
 
-    const movieYear = movie.release_date
-      ? parseInt(movie.release_date.slice(0, 4), 10)
-      : null;
+    const filtered = popularMovies.filter((movie) => {
+      if (!movie.release_date) return false;
 
-    const matchesYear = releaseYearFilter
-      ? movieYear && movieYear >= parseInt(releaseYearFilter, 10)
-      : true;
+      const releaseDate = new Date(movie.release_date);
+      const fromDate = releaseFrom ? new Date(releaseFrom) : null;
+      const toDate = releaseTo ? new Date(releaseTo) : null;
 
-    const isWatched = watchedMovieIds.has(movie.id);
-    const matchesWatch =
-      watchStatus === "watched"
-        ? isWatched
-        : watchStatus === "unwatched"
-        ? !isWatched
-        : true;
+      const matchesSeen =
+        seenFilter === "all" ||
+        (seenFilter === "seen" && favorites.some((f) => f.id === movie.id)) ||
+        (seenFilter === "unseen" && !favorites.some((f) => f.id === movie.id));
 
-    return matchesGenre && matchesWatch && matchesYear;
-  });
+      const matchesRelease =
+        (!fromDate || releaseDate >= fromDate) &&
+        (!toDate || releaseDate <= toDate);
+
+      const matchesGenre =
+        selectedGenres.length === 0 ||
+        selectedGenres.some((genre) =>
+          movie.genre_ids?.includes(Number(genre))
+        );
+
+      return matchesSeen && matchesRelease && matchesGenre;
+    });
+
+    setFilteredMovies(filtered);
+  }, [popularMovies, releaseFrom, releaseTo, selectedGenres, seenFilter, favorites]);
+
+  // Toggle favorite movie
+  const toggleFavorite = (movie) => {
+    const exists = favorites.some((fav) => fav.id === movie.id);
+    const updated = exists
+      ? favorites.filter((fav) => fav.id !== movie.id)
+      : [...favorites, movie];
+    setFavorites(updated);
+    localStorage.setItem("favorites", JSON.stringify(updated));
+  };
+
+  // Load more movies (pagination)
+  const handleLoadMore = () => {
+    setPage((prev) => prev + 1);
+  };
+
+  const genreOptions = Object.entries(genreMap).map(([id, name]) => ({
+    id: Number(id),
+    name,
+  }));
 
   return (
-    <div className="flex">
-      {/* Sidebar */}
-      <aside className="w-72 p-6 border-r bg-gray-50 min-h-screen">
-        <h2 className="text-xl font-bold mb-4">Filters</h2>
-
-        {/* Genre Filter */}
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Genre</label>
-          <select
-            onChange={(e) =>
-              setSelectedGenre(e.target.value ? Number(e.target.value) : null)
-            }
-            className="w-full border p-2 rounded"
+    <div className="flex flex-col lg:flex-row max-w-7xl mx-auto p-4 space-y-8 lg:space-y-0 lg:space-x-8">
+      <div className="flex-1">
+        <div className="mb-4 flex items-center justify-between lg:hidden">
+          <h2 className="text-2xl font-bold">⭐ Top Rated Movies</h2>
+          <button
+            className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm"
+            onClick={() => setShowFiltersMobile(true)}
+            aria-label="Show filters"
           >
-            <option value="">All Genres</option>
-            {Object.entries(genreMap).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
+            Show Filters
+          </button>
         </div>
 
-        {/* Watch Status Filter */}
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Watch Status</label>
-          <select
-            onChange={(e) => setWatchStatus(e.target.value)}
-            value={watchStatus}
-            className="w-full border p-2 rounded"
-          >
-            <option value="all">All</option>
-            <option value="watched">Watched</option>
-            <option value="unwatched">Unwatched</option>
-          </select>
-        </div>
+        <h2 className="text-3xl font-bold mb-4 hidden lg:block">⭐ Top Rated Movies</h2>
 
-        {/* Release Date Filter */}
-        <div className="mb-4">
-          <label className="block font-medium mb-1">Released After Year</label>
-          <input
-            type="number"
-            placeholder="e.g. 2000"
-            className="w-full border p-2 rounded"
-            value={releaseYearFilter}
-            onChange={(e) => setReleaseYearFilter(e.target.value)}
-          />
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 p-6">
-        <h1 className="text-3xl font-semibold mb-6">Top Rated Movies</h1>
-
-        {loadingPopular && <p>Loading movies...</p>}
+        {loadingPopular && page === 1 && <p>Loading...</p>}
         {errorPopular && <p className="text-red-500">{errorPopular}</p>}
 
-        {filteredMovies.length === 0 && (
-          <p className="text-gray-500">No movies match your filters.</p>
-        )}
+        <MovieList
+          movies={filteredMovies}
+          favorites={favorites}
+          toggleFavorite={toggleFavorite}
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-          {filteredMovies.map((movie) => (
-            <div
-              key={movie.id}
-              className="border rounded overflow-hidden shadow hover:shadow-lg transition"
+        {!loadingPopular && filteredMovies.length > 0 && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={handleLoadMore}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium transition"
             >
-              {movie.poster_url ? (
-                <img
-                  src={movie.poster_url}
-                  alt={movie.title}
-                  className="w-full h-72 object-cover"
-                />
-              ) : (
-                <div className="w-full h-72 bg-gray-200 flex items-center justify-center text-gray-500">
-                  No Image
-                </div>
-              )}
-              <div className="p-3">
-                <h3 className="font-bold text-lg truncate">{movie.title}</h3>
-                <p className="text-sm text-gray-600">{movie.release_date}</p>
-                <p className="text-sm mb-1">
-                  Genres: {movie.genre_names.join(", ") || "N/A"}
-                </p>
-                <span
-                  className={`inline-block px-2 py-1 text-xs rounded ${
-                    watchedMovieIds.has(movie.id)
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {watchedMovieIds.has(movie.id) ? "Watched" : "Unwatched"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
+              Load More
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Sidebar filters for desktop */}
+      <div className="hidden lg:block">
+        <SidebarFilters
+          genres={genreOptions}
+          selectedGenres={selectedGenres}
+          setSelectedGenres={setSelectedGenres}
+          seenFilter={seenFilter}
+          setSeenFilter={setSeenFilter}
+          releaseFrom={releaseFrom}
+          setReleaseFrom={setReleaseFrom}
+          releaseTo={releaseTo}
+          setReleaseTo={setReleaseTo}
+          onApplyFilters={applyFilters}
+        />
+      </div>
+
+      {/* Drawer filters for mobile */}
+      <Drawer
+        isOpen={showFiltersMobile}
+        onClose={() => setShowFiltersMobile(false)}
+        title="Filters"
+        from="left"
+        backdropClassName="bg-black bg-opacity-90"
+      >
+        <SidebarFilters
+          genres={genreOptions}
+          selectedGenres={selectedGenres}
+          setSelectedGenres={setSelectedGenres}
+          seenFilter={seenFilter}
+          setSeenFilter={setSeenFilter}
+          releaseFrom={releaseFrom}
+          setReleaseFrom={setReleaseFrom}
+          releaseTo={releaseTo}
+          setReleaseTo={setReleaseTo}
+          onApplyFilters={() => {
+            applyFilters();
+            setShowFiltersMobile(false);
+          }}
+        />
+      </Drawer>
     </div>
   );
 }

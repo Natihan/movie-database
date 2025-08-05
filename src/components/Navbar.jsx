@@ -43,15 +43,18 @@ export default function Navbar() {
   const toggleDropdown = (name) =>
     setOpenDropdown((prev) => (prev === name ? null : name));
 
+  // Dropdown with blurred translucent backdrop behind text
   const renderDropdown = (links) => (
-    <ul className="absolute left-0 mt-2 bg-white text-black shadow rounded py-2 w-44 z-10">
+    <ul className="absolute left-6 mt-2 w-44 z-10 rounded overflow-hidden">
+      {/* Backdrop blur + translucent bg */}
+      <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-md -z-10 rounded"></div>
       {Object.entries(links).map(([label, path]) => (
-        <li key={label} className="px-4 py-2 hover:bg-gray-100">
+        <li key={label} className="relative px-4 py-2 hover:bg-gray-100 z-20">
           <Link
             to={path}
             onClick={() => {
               setOpenDropdown(null);
-              setMobileMenuOpen(false); // Close mobile menu on link click
+              setMobileMenuOpen(false);
             }}
           >
             {label}
@@ -65,7 +68,7 @@ export default function Navbar() {
     try {
       await logout();
       navigate("/");
-      setMobileMenuOpen(false); // Close menu after logout
+      setMobileMenuOpen(false);
       setProfileMenuOpen(false);
     } catch (err) {
       console.error("Logout error:", err);

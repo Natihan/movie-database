@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import {
   FaListUl,
   FaHeart,
@@ -43,7 +42,7 @@ function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
       ? "border-yellow-400"
       : "border-red-500";
 
-  // 📌 Watchlist logic
+  // Watchlist logic
   useEffect(() => {
     const stored = localStorage.getItem("watchlist");
     const current = stored ? JSON.parse(stored) : [];
@@ -72,13 +71,12 @@ function MovieCard({ movie, isFavorite, toggleFavorite, searchQuery }) {
     <div className="relative min-w-[160px] flex flex-col items-center pb-8">
       <div className="relative w-full flex flex-col items-center">
         <div className="relative z-20 w-full rounded-xl overflow-hidden shadow-lg">
-          <Link to={`/movie/${movieId}`} state={{ movie, searchQuery }}>
-            <img
-              src={imgSrc}
-              alt={title}
-              className="w-full h-56 object-cover rounded-xl transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-lg"
-            />
-          </Link>
+          {/* Removed inner Link here */}
+          <img
+            src={imgSrc}
+            alt={title}
+            className="w-full h-56 object-cover rounded-xl transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-lg"
+          />
 
           {/* Menu button */}
           <button
